@@ -1,25 +1,24 @@
 FROM httpd:2.4
-COPY ./public-html/ /usr/local/apache2/htdocs/
+COPY ./public.html/ /usr/local/apache2/htdocs/
+
 docker build -t my-apache2 .
 docker run -dit --name my-running-app -p 8080:80 my-apache2
-# FROM nginx:1.11.9-alpine
 
-# for htpasswd command
-# RUN apk add --no-cache --update \
-      apache2-utils
-# RUN rm -f /etc/nginx/conf.d/*
+docker run -dit --name my-apache-app -p 8080:80 -v "$PWD":/usr/local/apache2/htdocs/ httpd:2.4
 
-ENV SERVER_NAME example.com
-ENV PORT 80
-ENV CLIENT_MAX_BODY_SIZE 1m
-ENV PROXY_READ_TIMEOUT 60s
-ENV WORKER_PROCESSES auto
+docker run --rm httpd:2.4 cat /usr/local/apache2/conf/httpd.conf > my-httpd.conf
 
-COPY files/run.sh /
-COPY files/nginx.conf.tmpl /
+FROM httpd:2.4
+COPY ./my-httpd.conf /usr/local/apache2/conf/httpd.conf
 
-# use SIGQUIT for graceful shutdown
-# c.f. http://nginx.org/en/docs/control.html
-STOPSIGNAL SIGQUIT
+#LoadModule socache_shmcb_module modules/mod_socache_shmcb.so
+#LoadModule ssl_module modules/mod_ssl.so
+#Include conf/extra/httpd-ssl.conf
 
-ENTRYPOINT ["/run.sh"]
+RUN sed -i \
+        -e 's/^#\(Include .*httpd-ssl.conf\)/\1/' \
+        -e 's/^#\(LoadModule .*mod_ssl.so\)/\1/' \
+        -e 's/^#\(LoadModule .*mod_socache_shmcb.so\)/\1/' \
+        conf/httpd.conf
+        
+        
